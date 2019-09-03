@@ -12,11 +12,12 @@ import android.os.Handler;
 import android.view.View;
 import android.webkit.WebStorage;
 import android.webkit.WebViewClient;
-import io.flutter.plugin.common.BinaryMessenger;
+
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
+import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugin.platform.PlatformView;
 import java.util.Collections;
 import java.util.List;
@@ -33,23 +34,21 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
   @SuppressWarnings("unchecked")
   FlutterWebView(
       final Context context,
-      BinaryMessenger messenger,
       int id,
       Map<String, Object> params,
-      final View containerView) {
-
+      final PluginRegistry.Registrar registrar) {
     DisplayListenerProxy displayListenerProxy = new DisplayListenerProxy();
     DisplayManager displayManager =
         (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
     displayListenerProxy.onPreWebViewInitialization(displayManager);
-    webView = new InputAwareWebView(context, containerView);
+    webView = new InputAwareWebView(context, registrar.view());
     displayListenerProxy.onPostWebViewInitialization(displayManager);
 
     platformThreadHandler = new Handler(context.getMainLooper());
     // Allow local storage.
     webView.getSettings().setDomStorageEnabled(true);
 
-    methodChannel = new MethodChannel(messenger, "plugins.flutter.io/webview_" + id);
+    methodChannel = new MethodChannel(registrar.messenger(), "plugins.flutter.io/webview_" + id);
     methodChannel.setMethodCallHandler(this);
 
     flutterWebViewClient = new FlutterWebViewClient(methodChannel);
@@ -68,6 +67,12 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
       String url = (String) params.get("initialUrl");
       webView.loadUrl(url);
     }
+
+    // Enable download files
+    webView.setDownloadListener(new FlutterWebViewDownloadListener(context));
+
+    // Enable upload files
+    webView.setWebChromeClient(new FlutterWebViewChromeClient(context, registrar));
   }
 
   @Override
