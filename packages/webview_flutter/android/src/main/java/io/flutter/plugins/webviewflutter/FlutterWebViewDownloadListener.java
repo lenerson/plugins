@@ -31,7 +31,24 @@ public class FlutterWebViewDownloadListener implements DownloadListener {
         request.allowScanningByMediaScanner();
         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
 
-        String fileName = URLUtil.guessFileName(url, contentDisposition, mimetype);
+        String fileName = null;
+
+        if (contentDisposition != null && !contentDisposition.isEmpty()) {
+            String convertedContentDisposition = contentDisposition
+                    .replaceAll("\\*=UTF-8''", "=")
+                    .replaceAll("[^0-9a-zA-Z=;.]", "");
+
+            String[] contentDispositionArray = convertedContentDisposition.split("filename=");
+            if (contentDispositionArray.length >= 2) {
+                fileName = contentDispositionArray[1];
+                mimetype = URLConnection.guessContentTypeFromName(fileName);
+                request.setMimeType(mimetype);
+            }
+        }
+
+        if (fileName == null || fileName.isEmpty()) {
+            fileName = URLUtil.guessFileName(url, contentDisposition, mimetype);
+        }
 
         request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
         DownloadManager dManager = (DownloadManager) context.getSystemService(DOWNLOAD_SERVICE);
